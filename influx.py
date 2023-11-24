@@ -15,11 +15,12 @@ class InfluxWriter:
                     org=self.org
                     )
             self.write_api = influx.write_api(write_options=SYNCHRONOUS)
+            self.bucket = config['influx']['bucket']
 
 
-    def publish(self, bucket: str, name: str, fields: dict):
+    def publish(self, name: str, fields: dict):
         p = influxdb_client.Point(name)
         for k, v in fields.items():
             p.field(k, v)
-        self.write_api.write(bucket=bucket, org=self.org, record=p)
+        self.write_api.write(bucket=self.bucket, org=self.org, record=p)
 

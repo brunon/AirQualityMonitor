@@ -13,10 +13,9 @@ manager.login()
 manager.update()
 
 influxdb = influx.InfluxWriter("/etc/vesync/vesync.yaml")
-bucket = "vesync"
 
 for device in manager.fans:
-    influxdb.publish(bucket, device.device_name, {
+    influxdb.publish(device.device_name, {
         "air_quality": device.details["air_quality_value"]
         })
 
