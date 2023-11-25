@@ -4,6 +4,7 @@
 f"Sorry! This program requires Python >= 3.6 😅"
 
 import os
+import math
 import time
 import yaml
 import numpy
@@ -449,6 +450,12 @@ while True:
     # Gas
     gas_data = gas.read_all()
 
+    # Air Quality Index
+    # an approximate air quality calculation that accounts for the effect of
+    # humidity on the gas sensor
+    # https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/25
+    aqi = round(math.log(gas_data.reducing) + 0.04 * corr_humidity, 1)
+
     # Display image
     disp.display(img)
 
@@ -461,7 +468,8 @@ while True:
             "pressure": mean_pressure,
             "gas_no2": gas_data.oxidising,
             "gas_resistance": gas_data.reducing,
-            "gas_nh3": gas_data.nh3
+            "gas_nh3": gas_data.nh3,
+            "aqi": aqi
             })
         last_publish_time = now
 
