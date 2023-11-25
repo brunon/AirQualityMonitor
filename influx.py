@@ -18,9 +18,8 @@ class InfluxWriter:
             self.bucket = config['influx']['bucket']
 
 
-    def publish(self, name: str, fields: dict):
-        p = influxdb_client.Point(name)
-        for k, v in fields.items():
-            p.field(k, v)
-        self.write_api.write(bucket=self.bucket, org=self.org, record=p)
+    def publish(self, device_name: str, fields: dict):
+        for k,v in fields.items():
+            record = f"{k},device={device_name.replace(' ','_')} value={v}"
+            self.write_api.write(bucket=self.bucket, org=self.org, record=record)
 

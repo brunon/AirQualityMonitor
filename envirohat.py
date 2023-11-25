@@ -323,7 +323,6 @@ with open("/etc/enviro/config.yaml") as f:
     city_name = config['city']
     time_zone = config['timezone']
     factor = config['cpu_adjustment_factor']
-    device_location = config['location']
 
 # Values that alter the look of the background
 blur = 50
@@ -456,14 +455,13 @@ while True:
     time_elapsed_since_last_publish = now - last_publish_time
     if time_elapsed_since_last_publish > 60:
         influxdb.publish(hostname, {
-            "location": device_location,
             "temperature": corr_temperature,
             "humidity": corr_humidity,
-            "light": light,
+            "luminance": light,
             "pressure": mean_pressure,
-            "oxidising": gas_data.oxidising / 1000.0,
-            "reducing": gas_data.reducing / 1000.0,
-            "nh3": gas_data.nh3 / 1000.0
+            "gas_no2": gas_data.oxidising,
+            "gas_resistance": gas_data.reducing,
+            "gas_nh3": gas_data.nh3
             })
         last_publish_time = now
 
