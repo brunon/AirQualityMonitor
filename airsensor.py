@@ -40,7 +40,7 @@ try:
         values = air_mon.read()
         if args.debug:
             print("PM 1.0 : {} \tPM 2.5 : {} \tPM 10 : {}".format(
-                values.pm10_cf1, values.pm25_cf1, values.pm100_cf1))
+                values.pm10_cf1, values.pm25_cf1, values.pm100_cf1), flush=True)
 
         oled_display.PrintText("PM1.0= {:2d}".format(values.pm10_cf1),
                                cords=(2, 2), FontSize=10)

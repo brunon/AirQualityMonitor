@@ -369,7 +369,7 @@ start_time = time.time()
 hostname = socket.gethostname()
 
 # connection to local InfluxDB
-influxdb = InfluxWriter("/etc/enviro/config.yaml")
+influxdb = InfluxWriter("/etc/enviro/config.yaml", "device")
 last_publish_time = start_time
 
 while True:
