@@ -52,7 +52,7 @@ def main():
         influxdb.publish(f"ec-{location}", {
             "temperature": current_temperature,
             "humidity": humidity,
-            "pressure": pressure,
+            "pressure": pressure * 10.0,
             },
             bucket="weather",
             timestamp=int(weather_timestamp.timestamp()))
