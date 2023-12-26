@@ -41,6 +41,7 @@ def download_weather_xml():
 def main():
     global last_publish_weather_timestamp, last_publish_forecast_timestamp
     root = download_weather_xml()
+    now = datetime.now()
 
     weather_timestamp = datetime.strptime(root.find(f"./currentConditions/dateTime[@zone='{TIMEZONE}']/timeStamp").text, WEATHER_TIMESTAMP)
     current_temperature = float(root.find("./currentConditions/temperature").text)
@@ -48,7 +49,7 @@ def main():
     humidity = float(root.find("./currentConditions/relativeHumidity").text)
     location = root.find("./currentConditions/station").get("code")
     if last_publish_weather_timestamp is None or weather_timestamp > last_publish_weather_timestamp:
-        print(f"Posting current conditions: temp {current_temperature}C humidity {humidity}% pressure {pressure}kPa", flush=True)
+        print(f"{now} Posting current conditions: temp {current_temperature}C humidity {humidity}% pressure {pressure}kPa", flush=True)
         influxdb.publish(f"ec-{location}", {
             "temperature": current_temperature,
             "humidity": humidity,
@@ -70,14 +71,14 @@ def main():
             days_diff = ((isoweekday - current_weekday) + 7) % 7
             if days_diff == 0: continue
 
-            future_ts = (datetime.now() + timedelta(days=days_diff)).replace(minute=0, second=0, microsecond=0)
+            future_ts = (now + timedelta(days=days_diff)).replace(minute=0, second=0, microsecond=0)
             if is_night:
                 future_ts = (future_ts + timedelta(days=1)).replace(hour=0) # midnight on next day
             else:
                 future_ts = future_ts.replace(hour=12) # noon
             
             temp = float(forecast.find("./temperatures/temperature").text)
-            print(f"Forecast for {future_ts} is {temp}C", flush=True)
+            print(f"{now} Forecast for {future_ts} is {temp}C", flush=True)
 
             influxdb.publish(f"ec-{location}", {
                 f"forecast-{days_diff}": temp,
