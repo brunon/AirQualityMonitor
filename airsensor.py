@@ -11,6 +11,7 @@ from serial import SerialException
 parser = argparse.ArgumentParser()
 parser.add_argument('--csv', dest='csv', help="History CSV to append to")
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--lcd-off', action='store_true')
 parser.add_argument('--write-delay', dest='write_delay', type=int, default=60, help="How long (in seconds) between writes to CSV file")
 args = parser.parse_args()
 
@@ -42,13 +43,16 @@ try:
             print("PM 1.0 : {} \tPM 2.5 : {} \tPM 10 : {}".format(
                 values.pm10_cf1, values.pm25_cf1, values.pm100_cf1), flush=True)
 
-        oled_display.PrintText("PM1.0= {:2d}".format(values.pm10_cf1),
-                               cords=(2, 2), FontSize=10)
-        oled_display.PrintText("PM2.5= {:2d}".format(values.pm25_cf1),
-                               cords=(65, 2), FontSize=10)
-        oled_display.PrintText("PM10= {:2d}".format(values.pm100_cf1),
-                               cords=(25, 20), FontSize=13)
-        oled_display.ShowImage()
+        if not args.lcd_off:
+            oled_display.PrintText("PM1.0= {:2d}".format(values.pm10_cf1),
+                                   cords=(2, 2), FontSize=10)
+            oled_display.PrintText("PM2.5= {:2d}".format(values.pm25_cf1),
+                                   cords=(65, 2), FontSize=10)
+            oled_display.PrintText("PM10= {:2d}".format(values.pm100_cf1),
+                                   cords=(25, 20), FontSize=13)
+            oled_display.ShowImage()
+        else:
+            oled_display.NoDisplay()
 
         now = datetime.now()
         if args.csv:
