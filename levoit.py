@@ -12,7 +12,7 @@ manager.login()
 # Get/Update Devices from server - populate device lists
 manager.update()
 
-influxdb = influx.InfluxWriter("/etc/vesync/vesync.yaml")
+influxdb = influx.InfluxWriter("/etc/vesync/vesync.yaml", "device")
 
 for device in manager.fans:
     influxdb.publish(device.device_name, {
