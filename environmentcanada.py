@@ -1,4 +1,7 @@
+import os
 import time
+import json
+import argparse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
@@ -10,7 +13,7 @@ LOCATION_CODE = "s0000551"
 TODAY = datetime.now().strftime("%Y%m%d")
 WEATHER_URL = f"https://hpfx.collab.science.gc.ca/{TODAY}/WXO-DD/citypage_weather/xml/{PROVINCE}/{LOCATION_CODE}_{LANGUAGE}.xml"
 WEATHER_TIMESTAMP = "%Y%m%d%H%M%S" # e.g. 20231222154500
-TIMEZONE = "EST"
+TIMEZONES = list(time.tzname)
 
 ISOWEEK_MAPPING = {
         "Monday": 1,
@@ -23,9 +26,23 @@ ISOWEEK_MAPPING = {
         }
 
 # connection to local InfluxDB
-last_publish_weather_timestamp = None
-last_publish_forecast_timestamp = None
 influxdb = InfluxWriter("/etc/enviro/config.yaml", "source")
+
+# setup CLI argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument('--nfs', required=True, dest='nfs_dir', help="NFS Directory to get status file from")
+args = parser.parse_args()
+nfs_dir = args.nfs_dir
+
+json_file = f"{nfs_dir}/weather.json"
+if os.path.exists(json_file):
+    with open(f"{nfs_dir}/weather.json", "r") as f:
+        j = json.load(f)
+        last_publish_weather_timestamp = datetime.strptime(j.get("last_publish_weather"), WEATHER_TIMESTAMP)
+        last_publish_forecast_timestamp = datetime.strptime(j.get("last_publish_forecast"), WEATHER_TIMESTAMP)
+else:
+    last_publish_weather_timestamp = None
+    last_publish_forecast_timestamp = None
 
 
 def download_weather_xml():
@@ -38,12 +55,22 @@ def download_weather_xml():
     return tree.getroot()
 
 
-def main():
+def get_tz_timestamp(root, xpath_tmpl):
+    for tz in TIMEZONES:
+        xp = xpath_tmpl.format(tz=tz)
+        timestamp = root.find(xpath_tmpl.format(tz=tz))
+        if timestamp is not None:
+            yield timestamp
+
+
+def get_and_publish_weather():
     global last_publish_weather_timestamp, last_publish_forecast_timestamp
+
     root = download_weather_xml()
     now = datetime.now()
 
-    weather_timestamp = datetime.strptime(root.find(f"./currentConditions/dateTime[@zone='{TIMEZONE}']/timeStamp").text, WEATHER_TIMESTAMP)
+    current_conditions = next(get_tz_timestamp(root, "./currentConditions/dateTime[@zone='{tz}']/timeStamp")).text
+    weather_timestamp = datetime.strptime(current_conditions, WEATHER_TIMESTAMP)
     current_temperature = float(root.find("./currentConditions/temperature").text)
     pressure = float(root.find("./currentConditions/pressure").text)
     humidity = float(root.find("./currentConditions/relativeHumidity").text)
@@ -58,8 +85,10 @@ def main():
             bucket="weather",
             timestamp=int(weather_timestamp.timestamp()))
         last_publish_weather_timestamp = weather_timestamp
+    else:
+        print(f"Weather data ({weather_timestamp}) same as last publish ({last_publish_weather_timestamp}), skipping")
 
-    forecast_ts = datetime.strptime(root.find(f"./forecastGroup/dateTime[@zone='{TIMEZONE}']/timeStamp").text, WEATHER_TIMESTAMP)
+    forecast_ts = datetime.strptime(next(get_tz_timestamp(root, "./forecastGroup/dateTime[@zone='{tz}']/timeStamp")).text, WEATHER_TIMESTAMP)
     current_weekday = date.today().isoweekday()
     if last_publish_forecast_timestamp is None or forecast_ts > last_publish_forecast_timestamp:
         for forecast in root.findall("./forecastGroup/forecast"):
@@ -86,13 +115,18 @@ def main():
                 bucket="weather",
                 timestamp=int(future_ts.timestamp()))
         last_publish_forecast_timestamp = forecast_ts
+    else:
+        print(f"Forecast data ({forecast_ts}) same as last publish ({last_publish_forecast_timestamp}), skipping")
 
 
-while True:
-    try:
-        main()
-    except Exception as ex:
-        print("Error during execution: " + ex)
+# get data
+get_and_publish_weather()
 
-    time.sleep(10 * 60) # wait 10 minutes and try again
+# write timestamps to nfs
+with open(f"{nfs_dir}/weather.json", "w") as f:
+    js = json.dumps({
+        "last_publish_weather": last_publish_weather_timestamp.strftime(WEATHER_TIMESTAMP),
+        "last_publish_forecast": last_publish_forecast_timestamp.strftime(WEATHER_TIMESTAMP)
+        })
+    f.write(js)
 
